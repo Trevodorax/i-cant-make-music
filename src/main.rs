@@ -47,20 +47,30 @@ async fn play_music(music_state: Arc<Mutex<MusicState>>) -> Result<(), Box<dyn s
     }
     let mut sink_index = 0;
 
-    // Load audio data once
-    let file = File::open("resources/lost-in-the-world-bass-kick_F#_minor.wav")?;
-    let mut audio_data = Vec::new();
-    std::io::copy(&mut BufReader::new(file), &mut audio_data)?;
+    // for now only 4 possible positions
+    let max_rhythm_position: usize = 4;
+    let mut current_rhythm_position: usize = 1;
 
     loop {
-        let cursor = Cursor::new(audio_data.clone());
-        let source = Decoder::new(cursor)?;
+        let music_state = music_state.lock().await.clone();
 
-        // Use next sink in rotation
-        sinks[sink_index].append(source);
-        sink_index = (sink_index + 1) % sinks.len();
+        // Play trck sound if it the rythm is true at this rhythm position
+        if music_state.track.rhythm[current_rhythm_position - 1] {
+            let cursor = Cursor::new(music_state.track.sound.clone());
+            let source = Decoder::new(cursor)?;
 
-        let interval_ms = 60_000 / music_state.lock().await.bpm;
+            // Use next sink in rotation
+            sinks[sink_index].append(source);
+            sink_index = (sink_index + 1) % sinks.len();
+        }
+
+        // wait and go to next rhythm position
+        let interval_ms = 60_000 / music_state.bpm / max_rhythm_position as u16;
         time::sleep(Duration::from_millis(interval_ms as u64)).await;
+        current_rhythm_position = if current_rhythm_position < max_rhythm_position {
+            current_rhythm_position + 1
+        } else {
+            1
+        }
     }
 }
