@@ -20,7 +20,7 @@ impl MusicState {
 #[derive(Clone, Serialize)]
 pub struct Track {
     pub sound: Vec<u8>,
-    pub rhythm: [bool; 4],
+    pub notes: [Option<i32>; 4],
 }
 
 impl Track {
@@ -33,7 +33,7 @@ impl Track {
 
         Track {
             sound: audio_data,
-            rhythm: [true, false, true, true],
+            notes: [Some(0), Some(6), Some(24), None],
         }
     }
 }
