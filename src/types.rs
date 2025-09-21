@@ -5,14 +5,42 @@ use std::io::BufReader;
 #[derive(Clone, Serialize)]
 pub struct MusicState {
     pub bpm: u16,
-    pub track: Track,
+    pub tracks: Vec<Track>,
+    pub notes_per_beat: usize,
 }
 
 impl MusicState {
     pub fn new() -> MusicState {
         MusicState {
-            bpm: 100,
-            track: Track::new("resources/lost-in-the-world-bass-kick_F#_minor.wav"),
+            bpm: 80,
+            tracks: vec![
+                Track::new(
+                    "resources/lost-in-the-world-bass-kick_F#_minor.wav",
+                    vec![Some(0), None, Some(6), None],
+                ),
+                Track::new(
+                    "resources/long-piano-note-C.wav",
+                    vec![
+                        Some(0),
+                        Some(5),
+                        None,
+                        Some(15),
+                        None,
+                        Some(5),
+                        Some(10),
+                        Some(15),
+                        Some(0),
+                        Some(5),
+                        None,
+                        Some(15),
+                        None,
+                        Some(5),
+                        Some(10),
+                        Some(17),
+                    ],
+                ),
+            ],
+            notes_per_beat: 4,
         }
     }
 }
@@ -20,11 +48,11 @@ impl MusicState {
 #[derive(Clone, Serialize)]
 pub struct Track {
     pub sound: Vec<u8>,
-    pub notes: [Option<i32>; 4],
+    pub notes: Vec<Option<i32>>,
 }
 
 impl Track {
-    pub fn new(sound_path: &str) -> Track {
+    pub fn new(sound_path: &str, notes: Vec<Option<i32>>) -> Track {
         // TODO: handle the potential errors with a Result instead
         let file = File::open(sound_path).expect("Unable to open sound file");
         let mut audio_data = Vec::new();
@@ -33,7 +61,7 @@ impl Track {
 
         Track {
             sound: audio_data,
-            notes: [Some(0), Some(6), Some(24), None],
+            notes,
         }
     }
 }

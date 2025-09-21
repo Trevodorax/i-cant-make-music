@@ -42,31 +42,39 @@ async fn play_music(music_state: Arc<Mutex<MusicState>>) -> Result<(), Box<dyn s
 
     // Create multiple sinks for overlapping playback
     let mut sinks = Vec::new();
-    for _ in 0..8 {
+    for _ in 0..50 {
         sinks.push(Sink::try_new(&stream_handle)?);
     }
     let mut sink_index = 0;
 
     // for now only 4 possible positions
-    let max_notes_per_beat: usize = 4;
     let mut current_note_position: usize = 1;
 
     loop {
         let music_state = music_state.lock().await.clone();
 
-        // Play track sound if it the rhythm is true at this rhythm position
-        if let Some(note) = music_state.track.notes[current_note_position - 1] {
-            let cursor = Cursor::new(music_state.track.sound.clone());
-            let source = Decoder::new(cursor)?;
+        let max_notes_per_beat: usize = music_state
+            .tracks
+            .iter()
+            .map(|track| track.notes.len())
+            .max()
+            .unwrap_or(0);
 
-            let shifted_source = source.speed(2_f32.powf(note as f32 / 12.0));
-            sinks[sink_index].append(shifted_source);
+        // Check each track for a note at this position and play it
+        for track in &music_state.tracks {
+            if let Some(note) = track.notes[(current_note_position - 1) % track.notes.len()] {
+                let cursor = Cursor::new(track.sound.clone());
+                let source = Decoder::new(cursor)?;
 
-            sink_index = (sink_index + 1) % sinks.len();
+                let shifted_source = source.speed(2_f32.powf(note as f32 / 12.0));
+                sinks[sink_index].append(shifted_source);
+
+                sink_index = (sink_index + 1) % sinks.len();
+            }
         }
 
         // wait and go to next rhythm position
-        let interval_ms = 60_000 / music_state.bpm / max_notes_per_beat as u16;
+        let interval_ms = 60_000 / music_state.bpm / music_state.notes_per_beat as u16;
         time::sleep(Duration::from_millis(interval_ms as u64)).await;
         current_note_position = if current_note_position < max_notes_per_beat {
             current_note_position + 1
