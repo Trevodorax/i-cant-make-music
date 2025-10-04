@@ -46,15 +46,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn play_music(music_state: Arc<Mutex<MusicState>>) -> Result<(), Box<dyn std::error::Error>> {
     let stream_handle = OutputStreamBuilder::open_default_stream()?;
-
-    // Create multiple sinks for overlapping playback
-    let mut sinks = Vec::new();
-    for _ in 0..50 {
-        sinks.push(Sink::connect_new(&stream_handle.mixer()));
-    }
-    let mut sink_index = 0;
-
-    // for now only 4 possible positions
     let mut current_note_position: usize = 1;
 
     loop {
@@ -67,20 +58,18 @@ async fn play_music(music_state: Arc<Mutex<MusicState>>) -> Result<(), Box<dyn s
             .max()
             .unwrap_or(0);
 
-        // Check each track for a note at this position and play it
         for track in &music_state.tracks {
             if let Some(note) = track.notes[(current_note_position - 1) % track.notes.len()] {
                 let cursor = Cursor::new(track.sound.clone());
                 let source = Decoder::new(cursor)?;
-
                 let shifted_source = source.speed(2_f32.powf(note as f32 / 12.0));
-                sinks[sink_index].append(shifted_source);
 
-                sink_index = (sink_index + 1) % sinks.len();
+                let sink = Sink::connect_new(&stream_handle.mixer());
+                sink.append(shifted_source);
+                sink.detach();
             }
         }
 
-        // wait and go to next rhythm position
         let interval_ms = 60_000 / music_state.bpm / music_state.notes_per_beat as u16;
         time::sleep(Duration::from_millis(interval_ms as u64)).await;
         current_note_position = if current_note_position < max_notes_per_beat {
