@@ -11,6 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time;
+use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,6 +28,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // === Setup router for music state changes === //
     let router = init_router(music_state.clone()).await;
+    // uncomment this to allow any CORS (for development)
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+    let router = router.layer(cors);
+
     let port = 8080;
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     axum_server::bind(addr)

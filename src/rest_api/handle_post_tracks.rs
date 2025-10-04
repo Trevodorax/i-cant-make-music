@@ -42,5 +42,8 @@ pub async fn handle_post_tracks(
     let mut music_state = music_state.lock().await;
     music_state.tracks.push(track.clone());
 
-    (StatusCode::CREATED, Json(json!({"created_track": track})))
+    (
+        StatusCode::CREATED,
+        Json(json!({"created_track": track, "state": *music_state})),
+    )
 }
