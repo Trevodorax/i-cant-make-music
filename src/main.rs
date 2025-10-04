@@ -3,9 +3,8 @@ mod types;
 
 use crate::rest_api::init_router;
 use crate::types::MusicState;
-use rodio::{Decoder, OutputStream, Sink, Source};
-use std::fs::File;
-use std::io::{BufReader, Cursor};
+use rodio::{Decoder, OutputStreamBuilder, Sink, Source};
+use std::io::Cursor;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -46,12 +45,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn play_music(music_state: Arc<Mutex<MusicState>>) -> Result<(), Box<dyn std::error::Error>> {
-    let (_stream, stream_handle) = OutputStream::try_default()?;
+    let stream_handle = OutputStreamBuilder::open_default_stream()?;
 
     // Create multiple sinks for overlapping playback
     let mut sinks = Vec::new();
     for _ in 0..50 {
-        sinks.push(Sink::try_new(&stream_handle)?);
+        sinks.push(Sink::connect_new(&stream_handle.mixer()));
     }
     let mut sink_index = 0;
 
