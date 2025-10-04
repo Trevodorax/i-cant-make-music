@@ -1,0 +1,269 @@
+openapi: 3.0.3
+info:
+  title: I Can't Make Music API
+  description: REST API for managing music state, tracks, and BPM
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /state:
+    get:
+      summary: Get current music state
+      description: Returns the current state including BPM, tracks, and notes per beat
+      operationId: getState
+      responses:
+        '200':
+          description: Successfully retrieved state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    $ref: '#/components/schemas/MusicState'
+
+  /sounds:
+    get:
+      summary: Get available sound files
+      description: Returns a list of all sound file names in the resources directory
+      operationId: getSounds
+      responses:
+        '200':
+          description: Successfully retrieved sound files
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sounds:
+                    type: array
+                    items:
+                      type: string
+                    description: List of sound file names
+                    example: ["kick.wav", "snare.wav", "hihat.wav"]
+        '500':
+          description: Failed to read resources directory
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bpm:
+    put:
+      summary: Update BPM
+      description: Updates the beats per minute for the music state
+      operationId: updateBpm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - bpm
+              properties:
+                bpm:
+                  type: integer
+                  format: uint16
+                  minimum: 1
+                  description: Beats per minute (must be greater than 0)
+                  example: 120
+      responses:
+        '200':
+          description: BPM successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    $ref: '#/components/schemas/MusicState'
+        '400':
+          description: Invalid BPM value
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tracks:
+    post:
+      summary: Create a new track
+      description: Creates a new track with the specified sound file and note pattern
+      operationId: createTrack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sound_path
+                - notes
+              properties:
+                sound_path:
+                  type: string
+                  description: Path to the audio file
+                  example: "resources/kick.wav"
+                notes:
+                  type: array
+                  description: Array of note shifts (null for silence)
+                  items:
+                    type: integer
+                    nullable: true
+                    format: int32
+                  example: [0, null, 5, null]
+      responses:
+        '201':
+          description: Track successfully created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created_track:
+                    $ref: '#/components/schemas/Track'
+                  state:
+                    $ref: '#/components/schemas/MusicState'
+        '400':
+          description: Invalid request (empty sound path or failed to create track)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tracks/{id}:
+    put:
+      summary: Update a track
+      description: Updates an existing track's sound file and/or note pattern
+      operationId: updateTrack
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Track ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sound_path:
+                  type: string
+                  description: Path to the audio file
+                  example: "resources/snare.wav"
+                notes:
+                  type: array
+                  description: Array of note shifts (null for silence)
+                  items:
+                    type: integer
+                    nullable: true
+                    format: int32
+                  example: [null, 0, null, 0]
+      responses:
+        '200':
+          description: Track successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    $ref: '#/components/schemas/MusicState'
+        '400':
+          description: Invalid request (empty sound path or failed to load sound file)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Track not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete a track
+      description: Removes a track from the music state
+      operationId: deleteTrack
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Track ID (UUID)
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Track successfully deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    $ref: '#/components/schemas/MusicState'
+        '404':
+          description: Track not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    MusicState:
+      type: object
+      properties:
+        bpm:
+          type: integer
+          format: uint16
+          description: Beats per minute
+          example: 120
+        tracks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Track'
+        notes_per_beat:
+          type: integer
+          description: Number of notes per beat
+          example: 4
+
+    Track:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique track identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        sound:
+          type: array
+          items:
+            type: integer
+            format: uint8
+          description: Binary audio data
+        notes:
+          type: array
+          description: Pattern of note shifts (null for silence)
+          items:
+            type: integer
+            nullable: true
+            format: int32
+          example: [0, null, 5, null, 10]
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "Invalid bpm."
